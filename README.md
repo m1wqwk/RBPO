@@ -1,28 +1,106 @@
-# Lab Work 1: Introduction to Spring Boot
+# Лабораторная работа №2:
 
-## Project Overview
+## Обзор проекта
 
-This is a Spring Boot demonstration application created as part of Lab Work 1. The application showcases basic Spring Boot functionality with simple REST endpoints.
+Это Spring Boot приложение для управления отелем, созданное в рамках Лабораторной работы 2 согласно варианту.
+Примерные сущности: Hotel, Room, Guest, Booking, Payment. 
+Описание: Номер принадлежит отелю; гость создаёт бронь на интервал дат. Пересечения броней одного номера запрещены; платёж подтверждает активность брони.
 
-## Endpoints
+## Архитектура системы
 
-The application exposes the following endpoints:
+Приложение реализует систему управления отелем со следующими связями между сущностями:
 
-*   `GET /`
-    *   Description: The main page showing the available endpoints.
-    *   Response: A message with a list of available endpoints.
-*   `GET /hello`
-    *   Description: Returns a simple "Hello World!" message
-    *   Response: "Hello World!"
-*   `GET /time`
-    *   Description: Returns the current server time
-    *   Response:  Time in format "yyyy-MM-dd HH:mm:ss"
-*   `GET /location`
-    *   Description: Returns the current location based on default locale
-    *   Response: Current country and locale information
+* Отель содержит несколько номеров;
+* Гость создает бронь на конкретные номера и периоды дат;
+* Бронь может иметь несколько платежей;
+* Платеж подтверждает активность брони;
+* Автоматически предотвращаются пересечения броней одного номера.
+
+## API Эндпоинты
+
+Управление отелями:
+
+*   `GET /api/hotels`
+    *   Получить все отели
+*   `GET /api/hotels/{id}`
+    *   Получить отель по ID
+*   `POST /api/hotels`
+    *   Создать новый отель
+*   `PUT /api/hotels/{id}`
+    *   Обновить отель
+*   `DELETE /api/hotels/{id}`
+    *   Удалить отель
+
+Управление номерами:
+
+*   `GET /api/rooms`
+    *   Получить все номера
+*   `GET /api/rooms/{id}`
+    *   Получить номер по ID
+*   `GET /api/rooms/hotel/{hotelId}`
+    *   Получить номера по отелю
+*   `POST /api/rooms`
+    *   Создать новый номер
+*   `PUT /api/rooms/{id}`
+    *   Обновить номер
+*   `DELETE /api/rooms/{id}`
+    *   Удалить номер
+
+Управление гостями:
+
+*   `GET /api/guests`
+    *   Получить всех гостей
+*   `GET /api/guests/{id}`
+    *   Получить гостя по ID
+*   `POST /api/guests`
+    *   Создать нового гостя
+*   `PUT /api/guests/{id}`
+    *   Обновить гостя
+*   `DELETE /api/guests/{id}`
+    *   Удалить гостя
+
+Управление бронями:
+
+*   `GET /api/bookings`
+    *   Получить все брони
+*   `GET /api/bookings/{id}`
+    *   Получить бронь по ID
+*   `GET /api/bookings/guest/{guestId}`
+    *   Получить брони по гостю
+*   `POST /api/bookings`
+    *   Создать новую бронь (с проверкой пересечений дат)
+*   `PUT /api/bookings/{id}`
+    *   Обновить бронь
+*   `DELETE /api/bookings/{id}`
+    *   Удалить бронь
+*   `PATCH /api/bookings/{id}/cancel`
+    *   Отменить бронь
+
+Управление платежами:
+
+*   `GET /api/payments`
+    *   Получить все платежи
+*   `GET /api/payments/{id}`
+    *   Получить отель по ID
+*   `GET /api/payments/booking/{bookingId}`
+    *   Получить платежи по брони
+*   `POST /api/payments`
+    *   Создать новый платеж
+*   `PUT /api/payments/{id}`
+    *   Обновить платеж
+*   `DELETE /api/payments/{id}`
+    *   Удалить платеж
+*   `PATCH /api/payments/{id}/complete`
+    *   Отметить платеж как завершенный
+
 
 ## Technologies Used
 
 *   **Java 21+**
 *   **Spring Boot 3.5.6**
 *   **Apache Maven**
+*   **Lombok**
+
+## Запуск приложения
+
+Приложение запускается на http://localhost:8080 по умолчанию.
