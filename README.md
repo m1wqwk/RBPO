@@ -162,4 +162,3 @@ PATCH http://localhost:8080/api/bookings/1/cancel
 ```sql
 GET http://localhost:8080/api/payments/stats/summary
 ```
-
