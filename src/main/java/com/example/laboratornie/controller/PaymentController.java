@@ -1,78 +1,98 @@
 package com.example.laboratornie.controller;
 
+import com.example.laboratornie.model.Booking;
 import com.example.laboratornie.model.Payment;
+import com.example.laboratornie.repository.PaymentRepository;
+import com.example.laboratornie.repository.BookingRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import com.example.laboratornie.DTO.DailyReport;
+import java.time.LocalDate;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/payments")
 public class PaymentController {
-    private final Map<Long, Payment> payments = new ConcurrentHashMap<>();
-    private final AtomicLong counter = new AtomicLong();
+    private final PaymentRepository paymentRepository;
+    private final BookingRepository bookingRepository;
 
-    public PaymentController() {
-        long initialId = counter.incrementAndGet();
-        Payment initialPayment = new Payment();
-        initialPayment.setId(initialId);
-        initialPayment.setBookingId(1L);
-        initialPayment.setAmount(5000.0);
-        initialPayment.setPaymentDate(LocalDateTime.now());
-        initialPayment.setPaymentMethod("CARD");
-        initialPayment.setStatus("COMPLETED");
-        payments.put(initialId, initialPayment);
+    public PaymentController(PaymentRepository paymentRepository, BookingRepository bookingRepository) {
+        this.paymentRepository = paymentRepository;
+        this.bookingRepository = bookingRepository;
     }
 
     @PostMapping
-    public Payment createPayment(@RequestBody Payment payment) {
-        long newId = counter.incrementAndGet();
-        payment.setId(newId);
+    public ResponseEntity<?> createPayment(@RequestBody Payment payment) {
+
+        if (!bookingRepository.existsById(payment.getBooking().getId())) {
+            return ResponseEntity.badRequest().body("Бронирование с ID: " + payment.getBooking().getId() + " отсутствует в базе.");
+        }
+
+        if (payment.getAmount() <= 0) {
+            return ResponseEntity.badRequest().body("Некорректная сумма платежа.");
+        }
+
         payment.setPaymentDate(LocalDateTime.now());
-        payments.put(newId, payment);
-        System.out.println("Создан платеж: " + payment);
-        return payment;
+
+        // Если статус не указан, устанавливаем по умолчанию
+        if (payment.getStatus() == null) {
+            payment.setStatus("PENDING");
+        }
+
+        Payment savedPayment = paymentRepository.save(payment);
+        System.out.println("Создан платеж: " + savedPayment);
+        return ResponseEntity.ok(savedPayment);
     }
 
     @GetMapping
     public List<Payment> getAllPayments() {
+        List<Payment> payments = paymentRepository.findAll();
         System.out.println("Запрошен список всех платежей. Всего: " + payments.size());
-        return new ArrayList<>(payments.values());
+        return payments;
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<Payment> getPaymentById(@PathVariable Long id) {
-        Payment payment = payments.get(id);
-        if (payment != null) {
-            System.out.println("Найден платеж по ID " + id + ": " + payment);
-            return ResponseEntity.ok(payment);
+        Optional<Payment> payment = paymentRepository.findById(id);
+        if (payment.isPresent()) {
+            System.out.println("Найден платеж по ID: " + id + ": " + payment.get());
+            return ResponseEntity.ok(payment.get());
         } else {
-            System.out.println("Платеж с ID " + id + " не найден.");
+            System.out.println("Платеж с ID: " + id + " отсутствует в базе.");
             return ResponseEntity.notFound().build();
         }
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Payment> updatePayment(@PathVariable Long id, @RequestBody Payment paymentDetails) {
-        if (payments.containsKey(id)) {
-            paymentDetails.setId(id);
-            payments.put(id, paymentDetails);
-            System.out.println("Обновлен платеж с ID " + id + ": " + paymentDetails);
-            return ResponseEntity.ok(paymentDetails);
-        } else {
+    public ResponseEntity<?> updatePayment(@PathVariable Long id, @RequestBody Payment paymentDetails) {
+        if (!paymentRepository.existsById(id)) {
             return ResponseEntity.notFound().build();
         }
+
+        // Проверка существования бронирования
+        if (!bookingRepository.existsById(paymentDetails.getBooking().getId())) {
+            return ResponseEntity.badRequest().body("Бронирование с ID: " + paymentDetails.getBooking().getId() + " отсутствует в базе.");
+        }
+
+        // Проверка валидности суммы
+        if (paymentDetails.getAmount() <= 0) {
+            return ResponseEntity.badRequest().body("Некорректная сумма платежа.");
+        }
+
+        paymentDetails.setId(id);
+        Payment updatedPayment = paymentRepository.save(paymentDetails);
+        System.out.println("Обновлен платеж с ID: " + id + ": " + updatedPayment);
+        return ResponseEntity.ok(updatedPayment);
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deletePayment(@PathVariable Long id) {
-        if (payments.remove(id) != null) {
-            System.out.println("Удален платеж с ID " + id);
+        if (paymentRepository.existsById(id)) {
+            paymentRepository.deleteById(id);
+            System.out.println("Удален платеж с ID: " + id);
             return ResponseEntity.noContent().build();
         } else {
             return ResponseEntity.notFound().build();
@@ -81,12 +101,42 @@ public class PaymentController {
 
     @PatchMapping("/{id}/complete")
     public ResponseEntity<Payment> completePayment(@PathVariable Long id) {
-        Payment payment = payments.get(id);
-        if (payment != null) {
+        Optional<Payment> paymentOpt = paymentRepository.findById(id);
+        if (paymentOpt.isPresent()) {
+            Payment payment = paymentOpt.get();
             payment.setStatus("COMPLETED");
             payment.setPaymentDate(LocalDateTime.now());
-            System.out.println("Платеж с ID " + id + " отмечен как завершенный");
-            return ResponseEntity.ok(payment);
+            Payment completedPayment = paymentRepository.save(payment);
+            System.out.println("Платеж с ID: " + id + " отмечен как завершенный.");
+            return ResponseEntity.ok(completedPayment);
+        } else {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    @PatchMapping("/{id}/fail")
+    public ResponseEntity<Payment> failPayment(@PathVariable Long id) {
+        Optional<Payment> paymentOpt = paymentRepository.findById(id);
+        if (paymentOpt.isPresent()) {
+            Payment payment = paymentOpt.get();
+            payment.setStatus("FAILED");
+            Payment failedPayment = paymentRepository.save(payment);
+            System.out.println("Платеж с ID: " + id + " отмечен как неудачный");
+            return ResponseEntity.ok(failedPayment);
+        } else {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    @PatchMapping("/{id}/refund")
+    public ResponseEntity<Payment> refundPayment(@PathVariable Long id) {
+        Optional<Payment> paymentOpt = paymentRepository.findById(id);
+        if (paymentOpt.isPresent()) {
+            Payment payment = paymentOpt.get();
+            payment.setStatus("REFUNDED");
+            Payment refundedPayment = paymentRepository.save(payment);
+            System.out.println("Платеж с ID: " + id + " отмечен как возвращенный");
+            return ResponseEntity.ok(refundedPayment);
         } else {
             return ResponseEntity.notFound().build();
         }
@@ -94,10 +144,103 @@ public class PaymentController {
 
     @GetMapping("/booking/{bookingId}")
     public List<Payment> getPaymentsByBooking(@PathVariable Long bookingId) {
-        List<Payment> bookingPayments = payments.values().stream()
-                .filter(payment -> payment.getBookingId().equals(bookingId))
-                .toList();
+        List<Payment> bookingPayments = paymentRepository.findByBookingId(bookingId);
         System.out.println("Найдено платежей для брони " + bookingId + ": " + bookingPayments.size());
         return bookingPayments;
+    }
+
+    @GetMapping("/status/{status}")
+    public List<Payment> getPaymentsByStatus(@PathVariable String status) {
+        List<Payment> payments = paymentRepository.findByStatus(status);
+        System.out.println("Найдено платежей со статусом '" + status + "': " + payments.size());
+        return payments;
+    }
+
+    // Новый endpoint для получения статистики по платежам
+    @GetMapping("/stats/summary")
+    public ResponseEntity<?> getPaymentSummary() {
+        List<Payment> allPayments = paymentRepository.findAll();
+
+        double totalCompleted = allPayments.stream()
+                .filter(p -> "COMPLETED".equals(p.getStatus()))
+                .mapToDouble(Payment::getAmount)
+                .sum();
+
+        double totalPending = allPayments.stream()
+                .filter(p -> "PENDING".equals(p.getStatus()))
+                .mapToDouble(Payment::getAmount)
+                .sum();
+
+        long completedCount = allPayments.stream()
+                .filter(p -> "COMPLETED".equals(p.getStatus()))
+                .count();
+
+        long pendingCount = allPayments.stream()
+                .filter(p -> "PENDING".equals(p.getStatus()))
+                .count();
+
+        var summary = new PaymentSummary(totalCompleted, totalPending, completedCount, pendingCount);
+        return ResponseEntity.ok(summary);
+    }
+
+    // Вспомогательный класс для статистики
+    private static class PaymentSummary {
+        public final double totalCompleted;
+        public final double totalPending;
+        public final long completedCount;
+        public final long pendingCount;
+
+        public PaymentSummary(double totalCompleted, double totalPending, long completedCount, long pendingCount) {
+            this.totalCompleted = totalCompleted;
+            this.totalPending = totalPending;
+            this.completedCount = completedCount;
+            this.pendingCount = pendingCount;
+        }
+    }
+
+    @GetMapping("/reports/daily")
+    public ResponseEntity<?> getDailyFinancialReport(@RequestParam String date) {
+        try {
+            System.out.println("Формирование ежедневного отчета за: " + date);
+
+            LocalDate reportDate = LocalDate.parse(date);
+            LocalDateTime startOfDay = reportDate.atStartOfDay();
+            LocalDateTime endOfDay = reportDate.atTime(23, 59, 59);
+
+            // Получаем платежи за день
+            List<Payment> dailyPayments = paymentRepository.findByPaymentDateBetween(startOfDay, endOfDay);
+
+            // Статистика по платежам
+            double totalIncome = dailyPayments.stream()
+                    .filter(p -> p.getAmount() > 0 && "COMPLETED".equals(p.getStatus()))
+                    .mapToDouble(Payment::getAmount)
+                    .sum();
+
+            double totalRefunds = dailyPayments.stream()
+                    .filter(p -> p.getAmount() < 0 && "COMPLETED".equals(p.getStatus()))
+                    .mapToDouble(Payment::getAmount)
+                    .sum();
+
+            // Бронирования на эту дату
+            List<Booking> dailyBookings = bookingRepository.findByCheckInDate(reportDate);
+            long completedBookings = dailyBookings.stream()
+                    .filter(b -> "CONFIRMED".equals(b.getStatus()))
+                    .count();
+
+            DailyReport report = new DailyReport(
+                    reportDate, totalIncome, totalRefunds,
+                    dailyPayments.size(), completedBookings
+            );
+
+            System.out.println("Отчет сформирован: доход=" + totalIncome +
+                    ", возвраты=" + totalRefunds +
+                    ", транзакций=" + dailyPayments.size());
+
+            return ResponseEntity.ok(report);
+
+        } catch (Exception e) {
+            System.out.println("Ошибка формирования отчета: " + e.getMessage());
+            return ResponseEntity.badRequest().body("Ошибка формирования отчета: " + e.getMessage());
+        }
     }
 }
