@@ -1,5 +1,6 @@
 package com.example.laboratornie.controller;
 
+import com.example.laboratornie.DTO.PaymentRequest;
 import com.example.laboratornie.model.Booking;
 import com.example.laboratornie.model.Payment;
 import com.example.laboratornie.repository.PaymentRepository;
@@ -25,26 +26,38 @@ public class PaymentController {
     }
 
     @PostMapping
-    public ResponseEntity<?> createPayment(@RequestBody Payment payment) {
+    public ResponseEntity<?> createPayment(@RequestBody PaymentRequest paymentRequest) {
+        try {
+            System.out.println("Создание платежа: " + paymentRequest);
 
-        if (!bookingRepository.existsById(payment.getBooking().getId())) {
-            return ResponseEntity.badRequest().body("Бронирование с ID: " + payment.getBooking().getId() + " отсутствует в базе.");
+            if (!bookingRepository.existsById(paymentRequest.getBookingId())) {
+                return ResponseEntity.badRequest().body("Бронирование с ID: " + paymentRequest.getBookingId() + " отсутствует в базе.");
+            }
+
+            if (paymentRequest.getAmount() <= 0) {
+                return ResponseEntity.badRequest().body("Некорректная сумма платежа.");
+            }
+
+            // Получаем бронирование
+            Booking booking = bookingRepository.findById(paymentRequest.getBookingId())
+                    .orElseThrow(() -> new RuntimeException("Бронирование не найдено"));
+
+            // Создаем Payment из PaymentRequest
+            Payment payment = new Payment();
+            payment.setBooking(booking);
+            payment.setAmount(paymentRequest.getAmount());
+            payment.setPaymentDate(LocalDateTime.now());
+            payment.setPaymentMethod(paymentRequest.getPaymentMethod());
+            payment.setStatus(paymentRequest.getStatus() != null ? paymentRequest.getStatus() : "PENDING");
+
+            Payment savedPayment = paymentRepository.save(payment);
+            System.out.println("Создан платеж: " + savedPayment);
+            return ResponseEntity.ok(savedPayment);
+
+        } catch (Exception e) {
+            System.err.println("Ошибка при создании платежа: " + e.getMessage());
+            return ResponseEntity.status(500).body("Ошибка сервера: " + e.getMessage());
         }
-
-        if (payment.getAmount() <= 0) {
-            return ResponseEntity.badRequest().body("Некорректная сумма платежа.");
-        }
-
-        payment.setPaymentDate(LocalDateTime.now());
-
-        // Если статус не указан, устанавливаем по умолчанию
-        if (payment.getStatus() == null) {
-            payment.setStatus("PENDING");
-        }
-
-        Payment savedPayment = paymentRepository.save(payment);
-        System.out.println("Создан платеж: " + savedPayment);
-        return ResponseEntity.ok(savedPayment);
     }
 
     @GetMapping
@@ -67,25 +80,46 @@ public class PaymentController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<?> updatePayment(@PathVariable Long id, @RequestBody Payment paymentDetails) {
-        if (!paymentRepository.existsById(id)) {
-            return ResponseEntity.notFound().build();
-        }
+    public ResponseEntity<?> updatePayment(@PathVariable Long id, @RequestBody PaymentRequest paymentRequest) {
+        try {
+            System.out.println("Обновление платежа ID: " + id + ", данные: " + paymentRequest);
 
-        // Проверка существования бронирования
-        if (!bookingRepository.existsById(paymentDetails.getBooking().getId())) {
-            return ResponseEntity.badRequest().body("Бронирование с ID: " + paymentDetails.getBooking().getId() + " отсутствует в базе.");
-        }
+            if (!paymentRepository.existsById(id)) {
+                return ResponseEntity.notFound().build();
+            }
 
-        // Проверка валидности суммы
-        if (paymentDetails.getAmount() <= 0) {
-            return ResponseEntity.badRequest().body("Некорректная сумма платежа.");
-        }
+            // Проверка существования бронирования
+            if (!bookingRepository.existsById(paymentRequest.getBookingId())) {
+                return ResponseEntity.badRequest().body("Бронирование с ID: " + paymentRequest.getBookingId() + " отсутствует в базе.");
+            }
 
-        paymentDetails.setId(id);
-        Payment updatedPayment = paymentRepository.save(paymentDetails);
-        System.out.println("Обновлен платеж с ID: " + id + ": " + updatedPayment);
-        return ResponseEntity.ok(updatedPayment);
+            // Проверка валидности суммы
+            if (paymentRequest.getAmount() <= 0) {
+                return ResponseEntity.badRequest().body("Некорректная сумма платежа.");
+            }
+
+            // Получаем существующий платеж
+            Payment existingPayment = paymentRepository.findById(id)
+                    .orElseThrow(() -> new RuntimeException("Платеж не найден"));
+
+            // Получаем бронирование
+            Booking booking = bookingRepository.findById(paymentRequest.getBookingId())
+                    .orElseThrow(() -> new RuntimeException("Бронирование не найдено"));
+
+            // Обновляем данные
+            existingPayment.setBooking(booking);
+            existingPayment.setAmount(paymentRequest.getAmount());
+            existingPayment.setPaymentMethod(paymentRequest.getPaymentMethod());
+            existingPayment.setStatus(paymentRequest.getStatus());
+
+            Payment updatedPayment = paymentRepository.save(existingPayment);
+            System.out.println("Обновлен платеж с ID: " + id + ": " + updatedPayment);
+            return ResponseEntity.ok(updatedPayment);
+
+        } catch (Exception e) {
+            System.err.println("Ошибка при обновлении платежа: " + e.getMessage());
+            return ResponseEntity.status(500).body("Ошибка сервера: " + e.getMessage());
+        }
     }
 
     @DeleteMapping("/{id}")

@@ -91,14 +91,80 @@ public class BookingController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Booking> updateBooking(@PathVariable Long id, @RequestBody Booking bookingDetails) {
-        if (bookingRepository.existsById(id)) {
-            bookingDetails.setId(id);
-            Booking updatedBooking = bookingRepository.save(bookingDetails);
+    public ResponseEntity<?> updateBooking(@PathVariable Long id, @RequestBody Map<String, Object> bookingDetails) {
+        try {
+            System.out.println("Обновление бронирования ID: " + id + ", данные: " + bookingDetails);
+
+            // Проверяем существование бронирования
+            Optional<Booking> existingBookingOpt = bookingRepository.findById(id);
+            if (existingBookingOpt.isEmpty()) {
+                return ResponseEntity.notFound().build();
+            }
+
+            Booking existingBooking = existingBookingOpt.get();
+
+            // Обновляем поля
+            if (bookingDetails.containsKey("checkInDate")) {
+                existingBooking.setCheckInDate(LocalDate.parse(bookingDetails.get("checkInDate").toString()));
+            }
+            if (bookingDetails.containsKey("checkOutDate")) {
+                existingBooking.setCheckOutDate(LocalDate.parse(bookingDetails.get("checkOutDate").toString()));
+            }
+            if (bookingDetails.containsKey("status")) {
+                existingBooking.setStatus(bookingDetails.get("status").toString());
+            }
+            if (bookingDetails.containsKey("totalPrice")) {
+                existingBooking.setTotalPrice(Double.valueOf(bookingDetails.get("totalPrice").toString()));
+            }
+
+            // Обновляем гостя если указан
+            if (bookingDetails.containsKey("guest") && bookingDetails.get("guest") instanceof Map) {
+                Map<String, Object> guestMap = (Map<String, Object>) bookingDetails.get("guest");
+                if (guestMap.containsKey("id")) {
+                    Long guestId = Long.valueOf(guestMap.get("id").toString());
+                    Optional<Guest> guestOpt = guestRepository.findById(guestId);
+                    if (guestOpt.isPresent()) {
+                        existingBooking.setGuest(guestOpt.get());
+                    } else {
+                        return ResponseEntity.badRequest().body("Гость с ID " + guestId + " не найден");
+                    }
+                }
+            }
+
+            // Обновляем номер если указан
+            if (bookingDetails.containsKey("room") && bookingDetails.get("room") instanceof Map) {
+                Map<String, Object> roomMap = (Map<String, Object>) bookingDetails.get("room");
+                if (roomMap.containsKey("id")) {
+                    Long roomId = Long.valueOf(roomMap.get("id").toString());
+                    Optional<Room> roomOpt = roomRepository.findById(roomId);
+                    if (roomOpt.isPresent()) {
+                        // Проверяем нет ли конфликта бронирований (исключая текущее)
+                        List<Booking> overlappingBookings = bookingRepository.findOverlappingBookings(
+                                        roomId,
+                                        existingBooking.getCheckInDate(),
+                                        existingBooking.getCheckOutDate()
+                                ).stream()
+                                .filter(b -> !b.getId().equals(id))
+                                .toList();
+
+                        if (!overlappingBookings.isEmpty()) {
+                            return ResponseEntity.badRequest().body("Номер занят на указанные даты");
+                        }
+                        existingBooking.setRoom(roomOpt.get());
+                    } else {
+                        return ResponseEntity.badRequest().body("Номер с ID " + roomId + " не найден");
+                    }
+                }
+            }
+
+            Booking updatedBooking = bookingRepository.save(existingBooking);
             System.out.println("Обновлена бронь с ID " + id + ": " + updatedBooking);
             return ResponseEntity.ok(updatedBooking);
-        } else {
-            return ResponseEntity.notFound().build();
+
+        } catch (Exception e) {
+            System.err.println("Ошибка при обновлении бронирования: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(500).body("Внутренняя ошибка сервера: " + e.getMessage());
         }
     }
 

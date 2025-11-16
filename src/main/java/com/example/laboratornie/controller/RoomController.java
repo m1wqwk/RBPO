@@ -1,22 +1,17 @@
 package com.example.laboratornie.controller;
 
+import com.example.laboratornie.DTO.RoomRequest;
 import com.example.laboratornie.model.Room;
+import com.example.laboratornie.model.Hotel;
 import com.example.laboratornie.repository.RoomRepository;
 import com.example.laboratornie.repository.HotelRepository;
 import org.springframework.http.ResponseEntity;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
-import com.example.laboratornie.DTO.AvailabilityRequest;
-
-import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 import java.util.List;
 import java.util.Optional;
 
-@RestController
+@RestController  // ← ЭТУ АННОТАЦИЮ ОБЯЗАТЕЛЬНО ДОБАВИТЬ
 @RequestMapping("/api/rooms")
 public class RoomController {
     private final RoomRepository roomRepository;
@@ -28,25 +23,49 @@ public class RoomController {
     }
 
     @PostMapping
-    public ResponseEntity<?> createRoom(@RequestBody Room room) {
-        // Проверка существования отеля
-        if (!hotelRepository.existsById(room.getHotel().getId())) {
-            return ResponseEntity.badRequest().body("Отель с ID: " + room.getHotel().getId() + " отсутствует в базе.");
+    public ResponseEntity<?> createRoom(@RequestBody RoomRequest roomRequest) {
+        try {
+            System.out.println("Получен запрос на создание номера: " + roomRequest);
+
+            if (roomRequest.getHotelId() == null) {
+                return ResponseEntity.badRequest().body("ID отеля не указан.");
+            }
+
+            Optional<Hotel> hotelOpt = hotelRepository.findById(roomRequest.getHotelId());
+            if (hotelOpt.isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body("Отель с ID: " + roomRequest.getHotelId() + " отсутствует в базе.");
+            }
+
+            Hotel hotel = hotelOpt.get();
+
+            // Проверка уникальности номера
+            List<Room> existingRooms = roomRepository.findByHotelId(hotel.getId());
+            boolean roomNumberExists = existingRooms.stream()
+                    .anyMatch(r -> r.getNumber().equals(roomRequest.getNumber()));
+
+            if (roomNumberExists) {
+                return ResponseEntity.badRequest()
+                        .body("ОШИБКА! Номер '" + roomRequest.getNumber() + "' уже существует.");
+            }
+
+            // Создаем Room из RoomRequest
+            Room room = new Room();
+            room.setNumber(roomRequest.getNumber());
+            room.setType(roomRequest.getType());
+            room.setPricePerNight(roomRequest.getPricePerNight());
+            room.setCapacity(roomRequest.getCapacity());
+            room.setAvailable(roomRequest.getAvailable());
+            room.setHotel(hotel);
+
+            Room savedRoom = roomRepository.save(room);
+            System.out.println("Создан номер: " + savedRoom);
+            return ResponseEntity.ok(savedRoom);
+
+        } catch (Exception e) {
+            System.err.println("Ошибка: " + e.getMessage());
+            return ResponseEntity.status(500).body("Ошибка сервера: " + e.getMessage());
         }
-
-        // Проверка уникальности номера комнаты
-        List<Room> existingRooms = roomRepository.findByHotelId(room.getHotel().getId());
-        boolean roomNumberExists = existingRooms.stream()
-                .anyMatch(r -> r.getNumber().equals(room.getNumber()));
-
-        if (roomNumberExists) {
-            return ResponseEntity.badRequest()
-                    .body("ОШИБКА! Номер '" + room.getNumber() + "' присутствует в базе.");
-        }
-
-        Room savedRoom = roomRepository.save(room);
-        System.out.println("Создан номер: " + savedRoom);
-        return ResponseEntity.ok(savedRoom);
     }
 
     @GetMapping
@@ -69,32 +88,49 @@ public class RoomController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<?> updateRoom(@PathVariable Long id, @RequestBody Room roomDetails) {
-        if (!roomRepository.existsById(id)) {
-            return ResponseEntity.notFound().build();
-        }
+    public ResponseEntity<?> updateRoom(@PathVariable Long id, @RequestBody RoomRequest roomRequest) {
+        try {
+            Optional<Room> existingRoomOpt = roomRepository.findById(id);
+            if (existingRoomOpt.isEmpty()) {
+                return ResponseEntity.notFound().build();
+            }
 
-        // Получаем текущий номер для проверки уникальности
-        Optional<Room> existingRoomOpt = roomRepository.findById(id);
-        if (existingRoomOpt.isPresent()) {
             Room existingRoom = existingRoomOpt.get();
 
-            // Проверяем уникальность номера комнаты (исключая текущую комнату)
-            List<Room> hotelRooms = roomRepository.findByHotelId(existingRoom.getHotel().getId());
+            if (roomRequest.getHotelId() == null) {
+                return ResponseEntity.badRequest().body("ID отеля не указан.");
+            }
+
+            Optional<Hotel> hotelOpt = hotelRepository.findById(roomRequest.getHotelId());
+            if (hotelOpt.isEmpty()) {
+                return ResponseEntity.badRequest().body("Отель с ID: " + roomRequest.getHotelId() + " не найден.");
+            }
+
+            Hotel hotel = hotelOpt.get();
+
+            List<Room> hotelRooms = roomRepository.findByHotelId(hotel.getId());
             boolean roomNumberExists = hotelRooms.stream()
-                    .anyMatch(r -> r.getNumber().equals(roomDetails.getNumber()) &&
+                    .anyMatch(r -> r.getNumber().equals(roomRequest.getNumber()) &&
                             !r.getId().equals(id));
 
             if (roomNumberExists) {
                 return ResponseEntity.badRequest()
-                        .body("ОШИБКА! Номер '" + roomDetails.getNumber() + "' присутствует в базе.");
+                        .body("ОШИБКА! Номер '" + roomRequest.getNumber() + "' уже существует.");
             }
-        }
 
-        roomDetails.setId(id);
-        Room updatedRoom = roomRepository.save(roomDetails);
-        System.out.println("Обновлен номер с ID: " + id + ": " + updatedRoom);
-        return ResponseEntity.ok(updatedRoom);
+            existingRoom.setNumber(roomRequest.getNumber());
+            existingRoom.setType(roomRequest.getType());
+            existingRoom.setPricePerNight(roomRequest.getPricePerNight());
+            existingRoom.setCapacity(roomRequest.getCapacity());
+            existingRoom.setAvailable(roomRequest.getAvailable());
+            existingRoom.setHotel(hotel);
+
+            Room updatedRoom = roomRepository.save(existingRoom);
+            return ResponseEntity.ok(updatedRoom);
+
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Ошибка сервера: " + e.getMessage());
+        }
     }
 
     @DeleteMapping("/{id}")
@@ -150,14 +186,13 @@ public class RoomController {
             Room room = roomOpt.get();
             room.setAvailable(available);
             Room updatedRoom = roomRepository.save(room);
-            System.out.println("Освободился номера с ID " + id + ": " + available);
+            System.out.println("Обновлена доступность номера с ID " + id + ": " + available);
             return ResponseEntity.ok(updatedRoom);
         } else {
             return ResponseEntity.notFound().build();
         }
     }
 
-    // Новый endpoint для поиска доступных номеров на определенные даты
     @GetMapping("/available-for-dates")
     public List<Room> getAvailableRoomsForDates(@RequestParam String checkIn, @RequestParam String checkOut) {
         // Преобразуем строки в LocalDate
@@ -167,68 +202,5 @@ public class RoomController {
         List<Room> availableRooms = roomRepository.findAvailableRoomsForDates(checkInDate, checkOutDate);
         System.out.println("Свободные номера на даты " + checkIn + " - " + checkOut + ": " + availableRooms.size());
         return availableRooms;
-    }
-
-    @GetMapping("/search")
-    public List<Room> searchAvailableRooms(
-            @RequestParam(required = false) String checkIn,
-            @RequestParam(required = false) String checkOut,
-            @RequestParam(required = false) String type,
-            @RequestParam(required = false) Double maxPrice,
-            @RequestParam(required = false) Integer minCapacity) {
-
-        System.out.println("Поиск номеров с фильтрами: " +
-                "checkIn=" + checkIn + ", checkOut=" + checkOut +
-                ", type=" + type + ", maxPrice=" + maxPrice + ", minCapacity=" + minCapacity);
-
-        List<Room> availableRooms;
-
-        if (checkIn != null && checkOut != null) {
-            LocalDate checkInDate = LocalDate.parse(checkIn);
-            LocalDate checkOutDate = LocalDate.parse(checkOut);
-            availableRooms = roomRepository.findAvailableRoomsForDates(checkInDate, checkOutDate);
-        } else {
-            availableRooms = roomRepository.findByAvailableTrue();
-        }
-
-        // Применяем фильтры
-        List<Room> filteredRooms = availableRooms.stream()
-                .filter(room -> type == null || room.getType().equalsIgnoreCase(type))
-                .filter(room -> maxPrice == null || room.getPricePerNight() <= maxPrice)
-                .filter(room -> minCapacity == null || room.getCapacity() >= minCapacity)
-                .collect(Collectors.toList());
-
-        System.out.println("Найдено номеров: " + filteredRooms.size());
-        return filteredRooms;
-    }
-
-    @PostMapping("/batch-availability")
-    @Transactional
-    public ResponseEntity<?> updateRoomsAvailability(@RequestBody AvailabilityRequest request) {
-        try {
-            System.out.println("Массовое обновление доступности для " + request.getRoomIds().size() + " номеров");
-
-            List<Room> updatedRooms = new ArrayList<>();
-
-            for (Long roomId : request.getRoomIds()) {
-                Room room = roomRepository.findById(roomId)
-                        .orElseThrow(() -> new RuntimeException("Номер не найден: " + roomId));
-
-                room.setAvailable(request.isAvailable());
-                roomRepository.save(room);
-                updatedRooms.add(room);
-            }
-
-            System.out.println("Обновлена доступность для " + updatedRooms.size() + " номеров");
-            return ResponseEntity.ok(Map.of(
-                    "message", "Обновлено номеров: " + updatedRooms.size(),
-                    "updatedRooms", updatedRooms.size(),
-                    "available", request.isAvailable()
-            ));
-
-        } catch (Exception e) {
-            System.out.println("Ошибка массового обновления: " + e.getMessage());
-            return ResponseEntity.badRequest().body("Ошибка: " + e.getMessage());
-        }
     }
 }
