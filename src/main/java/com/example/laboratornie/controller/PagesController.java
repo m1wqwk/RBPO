@@ -1,7 +1,6 @@
 package com.example.laboratornie.controller;
 
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -23,64 +22,49 @@ public class PagesController {
                        a { text-decoration: none; color: #2980b9; font-weight: bold; }
                        a:hover { color: #3498db; }
                        .info { background: #d4edda; color: #155724; padding: 15px; border-radius: 5px; margin: 20px 0; }
+                       .security { background: #fff3cd; color: #856404; padding: 15px; border-radius: 5px; margin: 20px 0; }
                    </style>
                </head>
                <body>
                    <div class="container">
-                       <h1>Добро пожаловать в систему управления отелем!</h1>
+                       <h1>Система управления отелем!</h1>
                        <p>Это веб-приложение для управления отелем, построенное на Spring Boot с использованием PostgreSQL.</p>
-                       
+                      
                        <div class="info">
-                           Все данные теперь сохраняются в PostgreSQL и сохраняются между перезапусками приложения.
+                           <strong>Общие сведения:</strong><br>
+                           • Все данные сохраняются в PostgreSQL<br>
+                           • Автоматическое создание таблиц при запуске<br>
+                           • REST API для управления всеми сущностями
                        </div>
                        
-                       <h2>Основные API:</h2>
-                       <ul>
-                           <li><a href="/api/hotels" target="_blank">GET /api/hotels</a> - Все отели</li>
-                           <li><a href="/api/rooms" target="_blank">GET /api/rooms</a> - Все номера</li>
-                           <li><a href="/api/guests" target="_blank">GET /api/guests</a> - Все гости</li>
-                           <li><a href="/api/bookings" target="_blank">GET /api/bookings</a> - Все брони</li>
-                           <li><a href="/api/payments" target="_blank">GET /api/payments</a> - Все платежи</li>
-                       </ul>
+                       <div class="security">
+                           <strong>Система безопасности</strong><br>
+                           • Используется Basic Authentication<br>
+                           • CSRF защита активна<br>
+                           • Ролевая модель доступа (USER, MANAGER, ADMIN)<br>
+                           • Регистрация новых пользователей через <span class="endpoint">/api/auth/register</span> доступна только ADMIN<br>
+                           • Проверка надежности паролей. Используйте надежный пароль (минимум 8 символов, цифры, спецсимволы)
+                       </div>
                        
-                       <h2>Дополнительные endpoints:</h2>
+                       <h2>Доступно:</h2>
                        <ul>
-                           <li><strong>Гости:</strong> GET /api/guests/email/{email}, GET /api/guests/passport/{passport}</li>
-                           <li><strong>Номера:</strong> GET /api/rooms/available, GET /api/rooms/hotel/{hotelId}</li>
-                           <li><strong>Платежи:</strong> GET /api/payments/status/{status}, GET /api/payments/stats/summary</li>
-                           <li><strong>Бронирования:</strong> GET /api/bookings/guest/{guestId}</li>
+                            <li><a href="/api/hotels">GET /api/hotels</a> - Все отели</li>
+                            <li><a href="/api/rooms">GET /api/rooms</a> - Все номера</li>
+                            <li><a href="/api/guests">GET /api/guests</a> - Все гости</li>
+                            <li><a href="/api/bookings">GET /api/bookings</a> - Все брони</li>
+                            <li><a href="/api/payments">GET /api/payments</a> - Все платежи</li>
                        </ul>
-                       
-                       <h2>Методы HTTP:</h2>
-                       <p>Для каждого endpoint доступны стандартные операции CRUD:</p>
+                                    
+                       <h2>Требования к паролю при регистрации:</h2>
                        <ul>
-                           <li><strong>POST</strong> - создание новой записи</li>
-                           <li><strong>GET</strong> - получение данных</li>
-                           <li><strong>PUT</strong> - полное обновление</li>
-                           <li><strong>PATCH</strong> - выборочное обновление</li>
-                           <li><strong>DELETE</strong> - удаление</li>
+                           <li>Минимум 8 символов</li>
+                           <li>Хотя бы одна цифра (0-9)</li>
+                           <li>Хотя бы один специальный символ (!@#$%^&*()_+-=[]{}|;:',./<>?)</li>
+                           <li>Пример надежного пароля: <span class="endpoint">Password123!@#</span></li>
                        </ul>
                    </div>
                </body>
                </html>
                """;
-    }
-
-    @GetMapping("/say/{text}")
-    public String saySomething(@PathVariable String text) {
-        return """
-               <html>
-               <head>
-                   <style>
-                       body { font-family: Arial, sans-serif; margin: 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
-                       .message { background: rgba(255,255,255,0.1); padding: 30px; border-radius: 15px; backdrop-filter: blur(10px); text-align: center; }
-                       h1 { font-size: 24px; margin-bottom: 20px; }
-                       p { font-size: 32px; font-weight: bold; color: #a9f5a5; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
-                   </style>
-               </head>
-               <body>
-               </body>
-               </html>
-               """.formatted(text);
     }
 }

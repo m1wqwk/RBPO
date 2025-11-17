@@ -127,16 +127,8 @@ GET http://localhost:8080/
 ```
 2. **Создать гостя**
 ```sql
-POST http://localhost:8080/api/guests
-Content-Type: application/json
-
-{
-  "firstName": "Иван",
-  "lastName": "Иванов", 
-  "email": "IvanovIvanI@mail.ru",
-  "phone": "+7-9XX-XXX-XX-XX",
-  "passportNumber": "XXXX 123456"
-}
+$body = '{"firstName":"Name","lastName":"LastName","email":"pochta@gmail.com","phone":"+7-907-707-77-55","passportNumber":"0000 000000"}'
+Invoke-RestMethod -Uri "http://localhost:8080/api/guests" -Method Post -Body $body -Headers $headers -ContentType "application/json; charset=utf-8"
 ```
 3. **Найти свободные номера**
 ```sql
@@ -144,15 +136,21 @@ GET http://localhost:8080/api/rooms/available
 ```
 4. **Забронировать номер**
 ```sql
-POST http://localhost:8080/api/bookings
-Content-Type: application/json
+$fullBookingBody = '{
+    "guestEmail": "example@gmail.com",
+    "guestFirstName": "name",
+    "guestLastName": "lastname",
+    "guestPhone": "+7-000-000-00-00",
+    "guestPassport": "XXXX XXXXXX",
+    "roomId": (указать ID номера),
+    "checkInDate": "2024-01-02",
+    "checkOutDate": "2024-01-04",
+    "paymentMethod": "CARD"
+}'
 
-{
-  "checkInDate": "2025-12-30",
-  "checkOutDate": "2026-01-6",
-  "guest": {"id": 1},
-  "room": {"id": 1}
-}
+$newBooking = Invoke-RestMethod -Uri "http://localhost:8080/api/bookings/full-booking" -Method Post -Body $fullBookingBody -Headers $headers -ContentType "application/json"
+$bookingId = $newBooking.id
+
 ```
 5. **Отменить бронь**
 ```sql
@@ -162,3 +160,46 @@ PATCH http://localhost:8080/api/bookings/1/cancel
 ```sql
 GET http://localhost:8080/api/payments/stats/summary
 ```
+
+### Лабораторная 4:
+*   Нет предустановленных пользователей - все создаются через API регистрации;
+*   Пароли хэшируются с использованием BCrypt;
+*   CSRF защита активна для веб-интерфейса;
+*   Базовая аутентификация для API endpoints;
+*   Строгая валидация паролей при регистрации;
+*   Ролевая модель доступа для всех операций.
+
+## API Endpoints
+*   `USER`
+    *   POST /api/bookings/**
+    *   GET /api/bookings/**
+    *   GET /api/guests/email/**
+    *   GET /api/guests/passport/**
+
+*   `MANAGER - может управлять номерами`
+    *   POST /api/bookings/**
+    *   GET /api/bookings/**
+    *   GET /api/guests/email/**
+    *   GET /api/guests/passport/**
+    *   GET /api/rooms/**
+    *   POST /api/rooms/**
+    *   GET /api/payments/**
+    *   POST /api/payments/**
+    *   GET /api/guests/**
+    *   POST /api/guests/**
+
+*   `ADMIN - полный доступ`
+    *   POST /api/bookings/**
+    *   GET /api/bookings/**
+    *   GET /api/guests/email/**
+    *   GET /api/guests/passport/**
+    *   GET /api/rooms/**
+    *   POST /api/rooms/**
+    *   GET /api/payments/**
+    *   POST /api/payments/**
+    *   GET /api/guests/**
+    *   POST /api/guests/**
+    *   GET /api/hotels/**
+    *   POST /api/hotels/**
+    *   POST /api/auth/register
+    *   GET /api/auth/users
