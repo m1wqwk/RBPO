@@ -18,20 +18,19 @@ import java.util.stream.Collectors;
 @Component
 public class JwtTokenUtil {
 
-    @Value("${jwt.secret:mySecretKeyForJWTTokenGenerationWithMinimum256Bits}")
+    @Value("${jwt.secret}")
     private String secret;
 
-    @Value("${jwt.access-token.expiration:900}") // 15 minutes
+    @Value("${jwt.access-token.expiration:900}")
     private Long accessTokenExpiration;
 
-    @Value("${jwt.refresh-token.expiration:604800}") // 7 days
+    @Value("${jwt.refresh-token.expiration:604800}")
     private Long refreshTokenExpiration;
 
     private SecretKey getSigningKey() {
         return Keys.hmacShaKeyFor(secret.getBytes());
     }
 
-    // Access Token generation
     public String generateAccessToken(UserDetails userDetails) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("roles", userDetails.getAuthorities().stream()
@@ -48,7 +47,6 @@ public class JwtTokenUtil {
                 .compact();
     }
 
-    // Refresh Token generation
     public String generateRefreshToken(UserDetails userDetails) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("tokenType", "REFRESH");
@@ -62,7 +60,6 @@ public class JwtTokenUtil {
                 .compact();
     }
 
-    // Token validation methods
     public boolean validateToken(String token, String expectedTokenType) {
         try {
             final String tokenType = getClaimFromToken(token, claims -> claims.get("tokenType", String.class));

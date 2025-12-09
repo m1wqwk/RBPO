@@ -47,7 +47,6 @@ public class BookingController {
             return ResponseEntity.badRequest().body("ОШИБКА! Номер отсутствует в базе!");
         }
 
-        // Проверка на пересечение броней
         List<Booking> overlappingBookings = bookingRepository.findOverlappingBookings(
                 booking.getRoom().getId(),
                 booking.getCheckInDate(),
@@ -59,7 +58,6 @@ public class BookingController {
             return ResponseEntity.badRequest().body("Номер забронирован на указанные даты.");
         }
 
-        // Расчет общей стоимости
         long nights = java.time.temporal.ChronoUnit.DAYS.between(
                 booking.getCheckInDate(), booking.getCheckOutDate());
         double totalPrice = nights * booking.getRoom().getPricePerNight();
@@ -95,7 +93,6 @@ public class BookingController {
         try {
             System.out.println("Обновление бронирования ID: " + id + ", данные: " + bookingDetails);
 
-            // Проверяем существование бронирования
             Optional<Booking> existingBookingOpt = bookingRepository.findById(id);
             if (existingBookingOpt.isEmpty()) {
                 return ResponseEntity.notFound().build();
@@ -103,7 +100,6 @@ public class BookingController {
 
             Booking existingBooking = existingBookingOpt.get();
 
-            // Обновляем поля
             if (bookingDetails.containsKey("checkInDate")) {
                 existingBooking.setCheckInDate(LocalDate.parse(bookingDetails.get("checkInDate").toString()));
             }
@@ -117,7 +113,6 @@ public class BookingController {
                 existingBooking.setTotalPrice(Double.valueOf(bookingDetails.get("totalPrice").toString()));
             }
 
-            // Обновляем гостя если указан
             if (bookingDetails.containsKey("guest") && bookingDetails.get("guest") instanceof Map) {
                 Map<String, Object> guestMap = (Map<String, Object>) bookingDetails.get("guest");
                 if (guestMap.containsKey("id")) {
@@ -131,7 +126,6 @@ public class BookingController {
                 }
             }
 
-            // Обновляем номер если указан
             if (bookingDetails.containsKey("room") && bookingDetails.get("room") instanceof Map) {
                 Map<String, Object> roomMap = (Map<String, Object>) bookingDetails.get("room");
                 if (roomMap.containsKey("id")) {
@@ -206,7 +200,6 @@ public class BookingController {
         try {
             System.out.println("Начало полного бронирования для: " + request.getGuestEmail());
 
-            // 1. Проверка или создание гостя
             Guest guest = guestRepository.findByEmail(request.getGuestEmail())
                     .orElseGet(() -> {
                         System.out.println("Создание нового гостя: " + request.getGuestEmail());
@@ -219,7 +212,6 @@ public class BookingController {
                         return guestRepository.save(newGuest);
                     });
 
-            // 2. Проверка доступности номера
             List<Booking> overlappingBookings = bookingRepository.findOverlappingBookings(
                     request.getRoomId(), request.getCheckInDate(), request.getCheckOutDate());
 
@@ -231,12 +223,10 @@ public class BookingController {
             Room room = roomRepository.findById(request.getRoomId())
                     .orElseThrow(() -> new RuntimeException("Номер не найден: " + request.getRoomId()));
 
-            // 3. Расчет стоимости
             long nights = java.time.temporal.ChronoUnit.DAYS.between(
                     request.getCheckInDate(), request.getCheckOutDate());
             double totalPrice = nights * room.getPricePerNight();
 
-            // 4. Создание бронирования
             Booking booking = new Booking();
             booking.setGuest(guest);
             booking.setRoom(room);
@@ -246,7 +236,6 @@ public class BookingController {
             booking.setStatus("CONFIRMED");
             Booking savedBooking = bookingRepository.save(booking);
 
-            // 5. Создание платежа
             Payment payment = new Payment();
             payment.setBooking(savedBooking);
             payment.setAmount(totalPrice);
@@ -255,7 +244,6 @@ public class BookingController {
             payment.setStatus("COMPLETED");
             paymentRepository.save(payment);
 
-            // 6. Обновление доступности номера
             room.setAvailable(false);
             roomRepository.save(room);
 
@@ -281,16 +269,13 @@ public class BookingController {
                 return ResponseEntity.badRequest().body("Бронирование уже отменено");
             }
 
-            // 1. Отмена бронирования
             booking.setStatus("CANCELLED");
             bookingRepository.save(booking);
 
-            // 2. Освобождение номера
             Room room = booking.getRoom();
             room.setAvailable(true);
             roomRepository.save(room);
 
-            // 3. Создание возврата платежа
             Payment refund = new Payment();
             refund.setBooking(booking);
             refund.setAmount(-booking.getTotalPrice());

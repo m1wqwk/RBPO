@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Optional;
 
-@RestController  // ← ЭТУ АННОТАЦИЮ ОБЯЗАТЕЛЬНО ДОБАВИТЬ
+@RestController
 @RequestMapping("/api/rooms")
 public class RoomController {
     private final RoomRepository roomRepository;
@@ -39,7 +39,6 @@ public class RoomController {
 
             Hotel hotel = hotelOpt.get();
 
-            // Проверка уникальности номера
             List<Room> existingRooms = roomRepository.findByHotelId(hotel.getId());
             boolean roomNumberExists = existingRooms.stream()
                     .anyMatch(r -> r.getNumber().equals(roomRequest.getNumber()));
@@ -49,7 +48,6 @@ public class RoomController {
                         .body("ОШИБКА! Номер '" + roomRequest.getNumber() + "' уже существует.");
             }
 
-            // Создаем Room из RoomRequest
             Room room = new Room();
             room.setNumber(roomRequest.getNumber());
             room.setType(roomRequest.getType());
@@ -136,7 +134,6 @@ public class RoomController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteRoom(@PathVariable Long id) {
         if (roomRepository.existsById(id)) {
-            // Проверяем, есть ли активные бронирования для этого номера
             Optional<Room> roomOpt = roomRepository.findById(id);
             if (roomOpt.isPresent()) {
                 Room room = roomOpt.get();
@@ -195,7 +192,6 @@ public class RoomController {
 
     @GetMapping("/available-for-dates")
     public List<Room> getAvailableRoomsForDates(@RequestParam String checkIn, @RequestParam String checkOut) {
-        // Преобразуем строки в LocalDate
         java.time.LocalDate checkInDate = java.time.LocalDate.parse(checkIn);
         java.time.LocalDate checkOutDate = java.time.LocalDate.parse(checkOut);
 

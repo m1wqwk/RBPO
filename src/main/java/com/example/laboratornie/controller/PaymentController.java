@@ -38,11 +38,9 @@ public class PaymentController {
                 return ResponseEntity.badRequest().body("Некорректная сумма платежа.");
             }
 
-            // Получаем бронирование
             Booking booking = bookingRepository.findById(paymentRequest.getBookingId())
                     .orElseThrow(() -> new RuntimeException("Бронирование не найдено"));
 
-            // Создаем Payment из PaymentRequest
             Payment payment = new Payment();
             payment.setBooking(booking);
             payment.setAmount(paymentRequest.getAmount());
@@ -88,25 +86,20 @@ public class PaymentController {
                 return ResponseEntity.notFound().build();
             }
 
-            // Проверка существования бронирования
             if (!bookingRepository.existsById(paymentRequest.getBookingId())) {
                 return ResponseEntity.badRequest().body("Бронирование с ID: " + paymentRequest.getBookingId() + " отсутствует в базе.");
             }
 
-            // Проверка валидности суммы
             if (paymentRequest.getAmount() <= 0) {
                 return ResponseEntity.badRequest().body("Некорректная сумма платежа.");
             }
 
-            // Получаем существующий платеж
             Payment existingPayment = paymentRepository.findById(id)
                     .orElseThrow(() -> new RuntimeException("Платеж не найден"));
 
-            // Получаем бронирование
             Booking booking = bookingRepository.findById(paymentRequest.getBookingId())
                     .orElseThrow(() -> new RuntimeException("Бронирование не найдено"));
 
-            // Обновляем данные
             existingPayment.setBooking(booking);
             existingPayment.setAmount(paymentRequest.getAmount());
             existingPayment.setPaymentMethod(paymentRequest.getPaymentMethod());
@@ -190,7 +183,6 @@ public class PaymentController {
         return payments;
     }
 
-    // Новый endpoint для получения статистики по платежам
     @GetMapping("/stats/summary")
     public ResponseEntity<?> getPaymentSummary() {
         List<Payment> allPayments = paymentRepository.findAll();
@@ -217,7 +209,6 @@ public class PaymentController {
         return ResponseEntity.ok(summary);
     }
 
-    // Вспомогательный класс для статистики
     private static class PaymentSummary {
         public final double totalCompleted;
         public final double totalPending;
@@ -241,10 +232,8 @@ public class PaymentController {
             LocalDateTime startOfDay = reportDate.atStartOfDay();
             LocalDateTime endOfDay = reportDate.atTime(23, 59, 59);
 
-            // Получаем платежи за день
             List<Payment> dailyPayments = paymentRepository.findByPaymentDateBetween(startOfDay, endOfDay);
 
-            // Статистика по платежам
             double totalIncome = dailyPayments.stream()
                     .filter(p -> p.getAmount() > 0 && "COMPLETED".equals(p.getStatus()))
                     .mapToDouble(Payment::getAmount)
@@ -255,7 +244,6 @@ public class PaymentController {
                     .mapToDouble(Payment::getAmount)
                     .sum();
 
-            // Бронирования на эту дату
             List<Booking> dailyBookings = bookingRepository.findByCheckInDate(reportDate);
             long completedBookings = dailyBookings.stream()
                     .filter(b -> "CONFIRMED".equals(b.getStatus()))

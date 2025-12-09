@@ -56,7 +56,6 @@ public class UserService {
             );
         }
 
-        // Валидация роли
         if (role == null || (!role.equals("USER") && !role.equals("MANAGER") && !role.equals("ADMIN"))) {
             role = "USER";
         }

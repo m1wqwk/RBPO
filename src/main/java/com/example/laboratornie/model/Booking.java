@@ -25,7 +25,7 @@ public class Booking {
     private LocalDate checkOutDate;
 
     @Column(nullable = false, length = 20)
-    private String status = "PENDING"; // PENDING, CONFIRMED, CANCELLED, COMPLETED
+    private String status = "PENDING";
 
     @Column(name = "total_price", nullable = false)
     private Double totalPrice;

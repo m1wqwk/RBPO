@@ -23,7 +23,6 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    // Убираем JwtAuthenticationFilter из конструктора
     private final UserDetailsService userDetailsService;
 
     @Bean

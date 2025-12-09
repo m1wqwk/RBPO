@@ -34,7 +34,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         final String jwt;
         final String userEmail;
 
-        // Skip JWT validation for public endpoints
         if (request.getServletPath().equals("/api/auth/login") ||
                 request.getServletPath().equals("/api/auth/refresh") ||
                 request.getServletPath().equals("/")) {

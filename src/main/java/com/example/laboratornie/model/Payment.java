@@ -25,8 +25,8 @@ public class Payment {
     private LocalDateTime paymentDate;
 
     @Column(name = "payment_method", nullable = false, length = 20)
-    private String paymentMethod; // CASH, CARD, TRANSFER
+    private String paymentMethod;
 
     @Column(nullable = false, length = 20)
-    private String status = "PENDING"; // PENDING, COMPLETED, FAILED, REFUNDED
+    private String status = "PENDING";
 }

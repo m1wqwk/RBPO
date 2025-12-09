@@ -37,7 +37,6 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {
         try {
-            // Authenticate user
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(
                             request.getUsername(),
@@ -47,7 +46,6 @@ public class AuthController {
 
             UserDetails userDetails = (UserDetails) authentication.getPrincipal();
 
-            // Generate token pair
             Map<String, String> tokens = tokenService.generateTokenPair(userDetails, request.getDeviceId());
 
             log.info("User {} successfully logged in", request.getUsername());
@@ -78,7 +76,6 @@ public class AuthController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> register(@RequestBody RegistrationRequest request) {
         try {
-            // Передаем passwordEncoder в метод
             User user = userService.registerUser(
                     request.getUsername(),
                     request.getEmail(),
@@ -98,7 +95,6 @@ public class AuthController {
         }
     }
 
-    // Остальные методы остаются без изменений...
     @GetMapping("/users")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<User>> getAllUsers() {

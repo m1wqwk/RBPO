@@ -13,20 +13,17 @@ import java.util.Optional;
 public class GuestController {
     private final GuestRepository guestRepository;
 
-    // Внедрение зависимости через конструктор
     public GuestController(GuestRepository guestRepository) {
         this.guestRepository = guestRepository;
     }
 
     @PostMapping
     public ResponseEntity<?> createGuest(@RequestBody Guest guest) {
-        // Проверка уникальности email
         if (guestRepository.findByEmail(guest.getEmail()).isPresent()) {
             return ResponseEntity.badRequest()
                     .body("ОШИБКА! Гость с email '" + guest.getEmail() + "' присутствует в базе.");
         }
 
-        // Проверка уникальности номера паспорта
         if (guestRepository.findByPassportNumber(guest.getPassportNumber()).isPresent()) {
             return ResponseEntity.badRequest()
                     .body("ОШИБКА! Гость с номером паспорта '" + guest.getPassportNumber() + "' присутствует в базе.");
@@ -58,19 +55,16 @@ public class GuestController {
 
     @PutMapping("/{id}")
     public ResponseEntity<?> updateGuest(@PathVariable Long id, @RequestBody Guest guestDetails) {
-        // Проверяем существование гостя
         if (!guestRepository.existsById(id)) {
             return ResponseEntity.notFound().build();
         }
 
-        // Проверяем уникальность email (исключая текущего гостя)
         Optional<Guest> existingGuestByEmail = guestRepository.findByEmail(guestDetails.getEmail());
         if (existingGuestByEmail.isPresent() && !existingGuestByEmail.get().getId().equals(id)) {
             return ResponseEntity.badRequest()
                     .body("ОШИБКА! Другой гость с таким email '" + guestDetails.getEmail() + "' присутствует в базе.");
         }
 
-        // Проверяем уникальность номера паспорта (исключая текущего гостя)
         Optional<Guest> existingGuestByPassport = guestRepository.findByPassportNumber(guestDetails.getPassportNumber());
         if (existingGuestByPassport.isPresent() && !existingGuestByPassport.get().getId().equals(id)) {
             return ResponseEntity.badRequest()
@@ -86,7 +80,6 @@ public class GuestController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteGuest(@PathVariable Long id) {
         if (guestRepository.existsById(id)) {
-            // Проверяем, есть ли активные бронирования у гостя
             Optional<Guest> guestOpt = guestRepository.findById(id);
             if (guestOpt.isPresent()) {
                 Guest guest = guestOpt.get();
@@ -108,7 +101,6 @@ public class GuestController {
         }
     }
 
-    // Дополнительные endpoints для поиска
     @GetMapping("/email/{email}")
     public ResponseEntity<Guest> getGuestByEmail(@PathVariable String email) {
         Optional<Guest> guest = guestRepository.findByEmail(email);
