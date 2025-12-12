@@ -37,18 +37,33 @@ jobs:
 
       - name: Restore Keystore
         run: |
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > src/main/resources/CertificateServer_1BIB23405.jks
+          mkdir -p src/main/resources/keystore
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > src/main/resources/keystore/server.jks
 
-      - name: Build with Maven
-        run: mvn -B package --file pom.xml
+      - name: Create test configuration
+        run: |
+          mkdir -p src/test/resources
+          cat > src/test/resources/application-ci.properties << EOF
+          spring.datasource.url=jdbc:postgresql://localhost:5432/${{ secrets.DB_NAME }}
+          spring.datasource.username=${{ secrets.DB_USER }}
+          spring.datasource.password=${{ secrets.DB_PASSWORD }}
+          spring.jpa.hibernate.ddl-auto=create-drop
+          spring.jpa.show-sql=true
+          server.ssl.enabled=false
+          jwt.secret=${{ secrets.JWT_KEY }}
+          EOF
+
+      - name: Run tests
+        run: mvn test -B
         env:
-          SSL_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          DB_NAME: ${{ secrets.DB_NAME }}
-          DB_USER: ${{ secrets.DB_USER }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-          ADMIN_USERNAME: ${{ secrets.ADMIN_USERNAME }}
-          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
-          JWT_KEY: ${{ secrets.JWT_KEY }}
+          SPRING_PROFILES_ACTIVE: ci
+
+      - name: Build JAR
+        run: mvn clean package -B -DskipTests
+        env:
+          SPRING_PROFILES_ACTIVE: ""
+          SSL_KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          SERVER_SSL_KEY_STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
